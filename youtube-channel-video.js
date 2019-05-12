@@ -54,6 +54,8 @@ const searchChannel = (channel, isUsername) => new Promise((resolve) => {
     });
 });
 
+
+
 const getDisplaySize = (size, index) => {
     const i = index || 0;
     const suffixes = ['B', 'KB', 'MB', 'GB'];
@@ -145,6 +147,28 @@ const downloadVideo = async (data, index, path) => {
     }
 };
 
+
+async function getVideoDetails(data, index)   {
+   if (index >= data.length) {
+        log('Finish fetching infos on all videos!!');
+        return;
+    }
+    const elem = data[index].url;
+    const videoId = elem.substring(elem.indexOf('?v=') + 3);
+    //console.log('Fetching video with id: ' + videoId + " and title: "+  data[index].title);
+
+    await rp({
+        url: `${API_URL}/videos?part=contentDetails&id=${videoId}&key=${API_KEY}`,
+        transform: JSON.parse,
+        }).then((res) => {
+        console.log('Video id, "' + videoId + '", title, "'+  data[index].title + '", duration, '+ res.items[0].contentDetails.duration);       
+    }).catch((err) => {
+        log('Error when searching channel: '+ err);
+    });
+      getVideoDetails(data, index + 1);  
+};
+
+
 (async () => {
     if (process.argv.length < 3) {
         log('USAGE: yarn run channel-id-or-username');
@@ -156,7 +180,7 @@ const downloadVideo = async (data, index, path) => {
         log(`Channel Id or Username '${channel}' not found...`);
         return;
     }
-    log(`Found channel '${infos.title}' !\nParse playlist to fetch all videos...`);
+    //log(`Found channel '${infos.title}' !\nParse playlist to fetch all videos...`);
 
     playlistRequest(infos.id, null).then((data) => {
         if (!data) { return; }
@@ -167,11 +191,10 @@ const downloadVideo = async (data, index, path) => {
         log(`Found ${data.length} videos on this channel.`);
 
         const path = `${__dirname}/${infos.title}`;
-        if (fs.existsSync(path) || fs.mkdirSync(path)) {
-            log(`Cannot create '${path}' directory (maybe already existing).`);
-            return;
-        }
-        log('Start downloading videos.');
-        downloadVideo(data, 0, path);
+        //log('Start downloading videos.');
+        getVideoDetails(data, 0).then((data) => {
+            //console.log(data);
+              //getVideoDetails(data, index + 1);  
+        });
     });
 })();
